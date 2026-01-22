@@ -65,6 +65,7 @@ For applications deployed to test subdomains (e.g., `test.agar3d.io`), the follo
 1.  **Log Endpoints:**
     The application MUST expose the following endpoints when running in a non-production environment (or when explicitly configured):
     -   `GET /api/logs/server`: Returns recent server logs (JSON array or plain text).
+    -   `POST /api/server/restart`: Restarts the server (e.g., by exiting with status 0 or 1, relying on systemd to restart).
 
 2.  **Log Viewer:**
     The infrastructure provides a static log viewer.
@@ -76,6 +77,27 @@ For applications deployed to test subdomains (e.g., `test.agar3d.io`), the follo
         }
         ```
     -   This viewer expects the API endpoints above to be available relative to the root.
+
+## Payment Integration
+The infrastructure includes a unified payment service (`payment-service`) for handling Stripe checkouts.
+
+### Service Details
+- **Internal URL:** `http://localhost:8089` (accessible from other apps on the VPS)
+- **External URL:** `https://payments.armadainteractive.co`
+
+### Workflow
+1.  **Create Session:** Make a POST request to `/checkout` with the following JSON:
+    ```json
+    {
+      "app_id": "your-app-name",
+      "price_id": "price_...", // OR amount (int cents), currency, product_name
+      "success_url": "https://your-app.com/success",
+      "cancel_url": "https://your-app.com/cancel",
+      "metadata": { "user_id": "123" } // Optional custom data
+    }
+    ```
+2.  **Redirect:** The response contains `{"url": "..."}`. Redirect the user to this Stripe URL.
+3.  **Verify:** Poll `GET /transaction?id=<session_id>` to check status (`paid`, `pending`, `expired`).
 
 ## Troubleshooting
 - **Deployment Loop:** If the server keeps rebuilding, check if `main` or `dist/` files are being tracked by git. Remove them with `git rm --cached <file>`.
